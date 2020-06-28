@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8"/>
+        <title>Canada Real-time Political Sentiment </title>
+        <script src="/static/Chart.js"></script>
+        <script type='text/javascript' src='https://www.google.com/jsapi'></script>
+        <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+
+    </head>
+
+    <body>
+        <center>
+            <h2>Real-time Political Sentiment Analysis on Twitter</h2>
+            <div style="width:1000px;height=800px">
+                <canvas id="chart"></canvas>
+            </div>
+
+            <div id="chart_div" style="width: 1000px; height: 800px;"></div>
+
+        </center>
+
+        <script>
+        var intervals = []
+        var conservative_data = [];
+        var liberal_data      = [];
+        var NDP_data          = [];
+        var ctx = document.getElementById('chart');
+        var config =  {
+            type: 'line',
+            data: {
+                labels: [{% for interval in intervals %}
+                          "{{interval}}",
+                         {% endfor %}],
+                datasets: [{
+                    data: [{% for item in liberal_data %}
+                              "{{item}}",
+                             {% endfor %}],
+                    label: "Liberals",
+                    borderColor: "rgba(255,99,132,1)",
+                    fill: false
+                  }, {
+                    data: [{% for item in conservative_data %}
+                              "{{item}}",
+                             {% endfor %}],
+                    label: "Conservatives",
+                    borderColor: "rgba(54, 162, 235, 1)",
+                    fill: false
+                  }, {
+                    data: [{% for item in NDP_data %}
+                              "{{item}}",
+                             {% endfor %}],
+                    label: "NDP",
+                    borderColor: "rgba(255,165,0, 1)",
+                    fill: false
+                  }
+                ]
+              },
+            options: {
+                scales: {
+                    yAxes: [{
+                        ticks: {
+                            beginAtZero: false
+                        }
+                    }]
+                }
+            }
+        }
+        var myChart = new Chart(ctx, config);
+
+        google.load('visualization', '1', {'packages': ['geochart']});
+              google.setOnLoadCallback(function() {
+                var data = google.visualization.arrayToDataTable([
+               ['Province',   'Party'],
+               ['Quebec' , 0],
+               ['Ontario',0],
+               ['Alberta',0],
+               ['Manitoba',0],
+               ['Nova Scotia', 0],
+               ['British Columbia',0],
+               ['New Brunswick', 0],
+               ['Newfoundland and Labrador', 0],
+               ['Nova Scotia',0],
+               ['Prince Edward Island',0],
+               ['Saskatchewan',0]
+                 ]);
+               var options = {
+                 region: 'CA',
+              //colorAxis: {colors: ['red', 'blue']},
+                 //displayMode: 'markers',
+                 resolution: 'provinces',
+                 legend: 'none',
+                 enableRegionInteractivity: 'true',
+              colorAxis: {
+                     minValue: 0,
+                     maxValue: 2
+                   },
+               colors: ['#FF0000','#3498DB'],
+                   backgroundColor: 'black',
+                   datalessRegionColor: 'black',
+                   defaultColor: 'red',
+
+                 //sizeAxis: {minSize:5,  maxSize: 5},
+                 //colorAxis: {minValue: 1, maxValue:1,  colors: ['#B92B3D']}
+              };
+              var chart = new google.visualization.GeoChart(document.getElementById('chart_div'));
+              chart.draw(data, options);
+              });
+        setInterval(function(){
+          // console.log("data pre GET: ");
+          // console.log(conservative_data);
+          // console.log(liberal_data);
+          // console.log(NDP_data);
+
+
+              $.getJSON('/refreshData', {
+              }, function(data) {
+                  // console.log(data);
+                  // console.log(liberal_data)
+                  conservative_data = data.conservativeData;
+                  liberal_data = data.liberalData;
+                  NDP_data = data.ndpData;
+
+                  console.log("data inside GET: ");
+                  console.log(conservative_data);
+                  console.log(liberal_data);
+                  console.log(NDP_data);
+
+              }).done(function() {
+                if(!(liberal_data.length == 0 && conservative_data.length == 0 &&
+                   NDP_data.length == 0)) {
+                     var today = new Date();
+                     var time = today.getHours() + ":" + today.getMinutes() +
+                                ":" + today.getSeconds();
+                     config.data.datasets[0].data.push(liberal_data);
+                     config.data.datasets[1].data.push(conservative_data);
+                     config.data.datasets[2].data.push(NDP_data);
+                     config.data.labels.push(time);
+                     console.log("current data: ");
+                     console.log(config.data.datasets[0].data);
+                     console.log(config.data.datasets[1].data);
+                     console.log(config.data.datasets[2].data);
+
+                     console.log(config.data.labels);
+                     myChart.update();
+                   }
+              });
+
+              // console.log("data final: ");
+              // console.log(conservative_data);
+              // console.log(liberal_data);
+              // console.log(NDP_data);
+              //
+              // var today = new Date();
+              // var time = today.getHours() + ":" + today.getMinutes() +
+              //            ":" + today.getSeconds();
+              //
+              // if (liberal_data.length == 0 && conservative_data.length == 0 &&
+              //    NDP_data.length == 0){
+              //   config.data.datasets[0].data.push(liberal_data);
+              //   config.data.datasets[1].data.push(conservative_data);
+              //   config.data.datasets[2].data.push(NDP_data);
+              //   config.data.labels.push(time);
+              // }
+
+              // myChart.update();
+          },5000);
+        </script>
+    </body>
+</html>

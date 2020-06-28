@@ -1,0 +1,260 @@
+<html>
+  <head>
+    <script type='text/javascript' src='https://www.google.com/jsapi'></script>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script src="/static/Chart.js"></script>
+    <!-- <link rel='stylesheet' type='text/css' href='chartStyle.css'> -->
+
+<style>
+.container {
+    /*width: 80%;*/
+    /*height: 200px;*/
+    /*background: aqua;*/
+    /*margin: auto;*/
+    /*padding: 10px;*/
+    /*align-items: center;*/
+    /*display: flex;*/
+}
+.one {
+    /*width: 15%;*/
+    /*height: 200px;*/
+    /*background: red;*/
+    /*float: left;*/
+    margin-left: 20%;
+    margin-bottom: 50px;
+
+
+}
+.two {
+    margin-left: 15%;
+    /*height: 200px;*/
+    /*float:right;*/
+    /*background: black;*/
+}
+
+h1 {
+  /*color: red;*/
+  text-align: center;
+  /*margin-bottom: 10px;*/
+}
+
+.changeProvince {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+</style>
+
+  </head>
+  <body>
+    <section class="container">
+    <h1>
+      Real-time Sentiment Analysis across Canadian Provinces
+    </h1>
+    <div class="two" id="chart_div" style="width: 1000px; height: 800px;"></div>
+    <h1 id="graph">
+      Real-time Sentiment Analysis per Province
+    </h1>
+  <div class="changeProvince">
+    <input id="provinceInput" type="text" value="">
+    <button onclick="setProvince()">Choose Province</button>
+  </div>
+    <div style="width:1000px;height=800px">
+        <canvas class="one" id="chart"></canvas>
+
+    </div>
+
+
+  </section>
+
+
+    <script type='text/javascript'>
+
+    provinceDict = {
+      "Quebec" : 1,
+      "Ontario" : 0,
+      "Sami" : 5
+    }
+
+    var intervals = []
+    var conservative_data = [];
+    var liberal_data      = [];
+    var NDP_data          = [];
+    var showProvince = "ON"
+
+    function setProvince() {
+      var input = document.getElementById("provinceInput").value;
+      showProvince = input;
+      // this.intervals = [];
+
+      var header = document.getElementById("graph");
+      header.innerHTML = "Real-time Sentiment Analysis per Province" + " (" +
+                          showProvince + ")";
+    }
+
+    var ctx = document.getElementById('chart');
+    var config =  {
+        type: 'line',
+        data: {
+            labels: [{% for interval in intervals %}
+                      "{{interval}}",
+                     {% endfor %}],
+            datasets: [{
+                data: [{% for item in liberal_data %}
+                          "{{item}}",
+                         {% endfor %}],
+                label: "Liberals",
+                borderColor: "rgba(255,99,132,1)",
+                fill: false
+              }, {
+                data: [{% for item in conservative_data %}
+                          "{{item}}",
+                         {% endfor %}],
+                label: "Conservatives",
+                borderColor: "rgba(54, 162, 235, 1)",
+                fill: false
+              }, {
+                data: [{% for item in NDP_data %}
+                          "{{item}}",
+                         {% endfor %}],
+                label: "NDP",
+                borderColor: "rgba(255,165,0, 1)",
+                fill: false
+              }
+            ]
+          },
+        options: {
+            scales: {
+                yAxes: [{
+                    ticks: {
+                        beginAtZero: false
+                    }
+                }]
+            }
+        }
+    }
+    var myChart = new Chart(ctx, config);
+
+    var x = 0;
+
+    // function loadMap() {
+      google.load('visualization', '1', {'packages': ['geochart']});
+      google.setOnLoadCallback(function() {
+        var data = google.visualization.arrayToDataTable([
+       ['Province',   'Party'],
+       ['Quebec' , 3],
+       ['Ontario',3],
+       ['Alberta',3],
+       ['Manitoba',3],
+       ['Nova Scotia', 3],
+       ['British Columbia',3],
+       ['New Brunswick', 3],
+       ['Newfoundland and Labrador', 3],
+       ['Nova Scotia',3],
+       ['Prince Edward Island',3],
+       ['Saskatchewan',3]
+         ]);
+       var options = {
+         region: 'CA',
+      //colorAxis: {colors: ['red', 'blue']},
+         //displayMode: 'markers',
+         resolution: 'provinces',
+         legend: 'none',
+         enableRegionInteractivity: 'true',
+      colorAxis: {
+             minValue: 0,
+             maxValue: 3
+           },
+       colors: ['#FF0000','#3498DB', '#ffa500', '#d3d3d3'],
+           backgroundColor: 'light blue',
+           datalessRegionColor: 'white',
+           defaultColor: 'red',
+
+         //sizeAxis: {minSize:5,  maxSize: 5},
+         //colorAxis: {minValue: 1, maxValue:1,  colors: ['#B92B3D']}
+      };
+      var chart = new google.visualization.GeoChart(document.getElementById('chart_div'));
+      chart.draw(data, options);
+
+      setInterval(function() {
+        $.getJSON('/refreshData', {
+        }, function(data2) {
+          provinceDict = data2.provinceDict;
+          conservative_data = provinceDict[showProvince]['Conservatives'];
+          liberal_data = provinceDict[showProvince]['Liberals'];
+          NDP_data = provinceDict[showProvince]['NDP'];
+          // console.log(provinceDict);
+        }).done(function() {
+            data.setValue(0, 1, getSentiment(provinceDict['QC']));
+            data.setValue(1, 1, getSentiment(provinceDict['ON']));
+            data.setValue(2, 1, getSentiment(provinceDict['AB']));
+            data.setValue(3, 1, getSentiment(provinceDict['MB']));
+            data.setValue(4, 1, getSentiment(provinceDict['NS']));
+            data.setValue(5, 1, getSentiment(provinceDict['BC']));
+            data.setValue(6, 1, getSentiment(provinceDict['NB']));
+            data.setValue(7, 1, getSentiment(provinceDict['NL']));
+            data.setValue(8, 1, getSentiment(provinceDict['NS']));
+            data.setValue(9, 1, getSentiment(provinceDict['PE']));
+            data.setValue(10, 1, getSentiment(provinceDict['SASK']));
+
+            chart.draw(data, options);
+
+            if(!(liberal_data.length == 0 && conservative_data.length == 0 &&
+               NDP_data.length == 0)) {
+                 var today = new Date();
+                 var time = today.getHours() + ":" + today.getMinutes() +
+                            ":" + today.getSeconds();
+                 config.data.datasets[0].data.push(liberal_data);
+                 config.data.datasets[1].data.push(conservative_data);
+                 config.data.datasets[2].data.push(NDP_data);
+                 config.data.labels.push(time);
+                 console.log("current data: ");
+                 console.log(config.data.datasets[0].data);
+                 console.log(config.data.datasets[1].data);
+                 console.log(config.data.datasets[2].data);
+
+                 console.log(config.data.labels);
+                 myChart.update();
+               }
+        });
+      }, 10000);
+      });
+
+      function getSentiment(partySentiments) {
+        conservatives = partySentiments['Conservatives'];
+        liberals = partySentiments['Liberals'];
+        ndp = partySentiments['NDP'];
+
+        if (conservatives === 0) {
+          conservatives = -10;
+        }
+
+        if (liberals === 0) {
+          liberals = -10;
+        }
+
+        if (ndp === 0) {
+          ndp = -10;
+        }
+
+
+        var max = Math.max(conservatives, liberals, ndp);
+
+        console.log(max);
+
+        if (max == conservatives && max > 0) {
+          return 1;
+        } else if (max == liberals && max > 0) {
+          return 0;
+        } else if (max == ndp && max > 0) {
+          return 2;
+        } else {
+          return 3;
+        }
+
+      }
+
+    </script>
+  </body>
+</html>
